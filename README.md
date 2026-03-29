@@ -1,13 +1,9 @@
-# trie2
+# trie-tool
 
-Trie with Autocomplete and Fuzzy Search. Zero-dependency, single-file Python CLI.
+Trie data structure with autocomplete. Zero-dependency, single-file Python CLI.
 
 ## Usage
 
 ```bash
 python3 trie2.py --help
 ```
-
-## License
-
-MIT

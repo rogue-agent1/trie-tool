@@ -1,71 +1,74 @@
-#!/usr/bin/env python3
-"""Trie - Prefix tree with autocomplete, count, and fuzzy matching."""
-import sys
+import argparse, json
 
 class TrieNode:
     def __init__(self):
-        self.children = {}; self.end = False; self.count = 0; self.word = None
+        self.children = {}
+        self.is_end = False
+        self.count = 0
 
 class Trie:
-    def __init__(self): self.root = TrieNode(); self.size = 0
+    def __init__(self):
+        self.root = TrieNode()
+
     def insert(self, word):
         node = self.root
         for c in word:
             if c not in node.children: node.children[c] = TrieNode()
-            node = node.children[c]; node.count += 1
-        node.end = True; node.word = word; self.size += 1
+            node = node.children[c]
+            node.count += 1
+        node.is_end = True
+
     def search(self, word):
-        node = self._find(word)
-        return node.end if node else False
-    def starts_with(self, prefix):
-        node = self._find(prefix)
-        return node is not None
-    def _find(self, prefix):
+        node = self.root
+        for c in word:
+            if c not in node.children: return False
+            node = node.children[c]
+        return node.is_end
+
+    def autocomplete(self, prefix, limit=10):
         node = self.root
         for c in prefix:
-            if c not in node.children: return None
+            if c not in node.children: return []
             node = node.children[c]
-        return node
-    def autocomplete(self, prefix, limit=10):
-        node = self._find(prefix)
-        if not node: return []
-        results = []; self._collect(node, results, limit)
-        return results
-    def _collect(self, node, results, limit):
-        if len(results) >= limit: return
-        if node.end: results.append(node.word)
-        for c in sorted(node.children):
-            self._collect(node.children[c], results, limit)
-    def fuzzy(self, word, max_dist=1):
         results = []
-        def dfs(node, i, dist, path):
-            if dist > max_dist: return
-            if i == len(word):
-                if node.end: results.append(("".join(path), dist))
-                for c, child in node.children.items():
-                    dfs(child, i, dist + 1, path + [c])
-                return
-            for c, child in node.children.items():
-                d = 0 if c == word[i] else 1
-                dfs(child, i + 1, dist + d, path + [c])
-                dfs(child, i, dist + 1, path + [c])
-            dfs(node, i + 1, dist + 1, path)
-        dfs(self.root, 0, 0, [])
-        return sorted(set(results), key=lambda x: x[1])
+        def dfs(n, path):
+            if len(results) >= limit: return
+            if n.is_end: results.append(prefix + path)
+            for c in sorted(n.children):
+                dfs(n.children[c], path + c)
+        dfs(node, "")
+        return results
+
     def count_prefix(self, prefix):
-        node = self._find(prefix)
-        return node.count if node else 0
+        node = self.root
+        for c in prefix:
+            if c not in node.children: return 0
+            node = node.children[c]
+        return node.count
 
 def main():
+    p = argparse.ArgumentParser(description="Trie with autocomplete")
+    p.add_argument("--words", nargs="+")
+    p.add_argument("--search")
+    p.add_argument("--complete")
+    p.add_argument("--count")
+    p.add_argument("--demo", action="store_true")
+    args = p.parse_args()
     t = Trie()
-    words = ["apple", "app", "application", "apply", "apt", "banana", "band", "bar", "bat"]
-    for w in words: t.insert(w)
-    print(f"=== Trie ({t.size} words) ===\n")
-    print(f"Search 'app': {t.search('app')}")
-    print(f"Search 'ap': {t.search('ap')}")
-    print(f"Prefix 'app': {t.autocomplete('app')}")
-    print(f"Count 'ap*': {t.count_prefix('ap')}")
-    print(f"Fuzzy 'aple' (dist≤1): {t.fuzzy('aple', 1)}")
+    if args.demo:
+        words = ["apple","app","application","apply","apt","ape","banana","band","ban"]
+        for w in words: t.insert(w)
+        print(f"Complete 'app': {t.autocomplete('app')}")
+        print(f"Complete 'ban': {t.autocomplete('ban')}")
+        print(f"Search 'apple': {t.search('apple')}")
+        print(f"Search 'appl': {t.search('appl')}")
+        print(f"Count 'app': {t.count_prefix('app')}")
+    elif args.words:
+        for w in args.words: t.insert(w)
+        if args.search: print(t.search(args.search))
+        if args.complete: print(t.autocomplete(args.complete))
+        if args.count: print(t.count_prefix(args.count))
+    else: p.print_help()
 
 if __name__ == "__main__":
     main()
